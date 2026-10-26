@@ -1,0 +1,24 @@
+------------------------------------------------------------
+Client connecting to 10.0.0.4, UDP port 5001
+Sending 1470 byte datagrams, IPG target: 0.00 us (kalman adjust)
+UDP buffer size:  208 KByte (default)
+------------------------------------------------------------
+[  1] local 10.0.0.1 port 44244 connected with 10.0.0.4 port 5001
+[ ID] Interval       Transfer     Bandwidth
+[  1] 0.0000-79.3455 sec  77.2 MBytes  8.16 Mbits/sec
+[  1] Sent 55061 datagrams
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable
+write-fin failed: Network is unreachable

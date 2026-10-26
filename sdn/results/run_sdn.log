@@ -1,0 +1,72 @@
+--- repeat 1 rtt ---
+ack_ms: avg=1.44  p50=1.35  p95=2.95  max=4.19
+delivery_ms: avg=1.55  p50=1.45  p95=3.01  max=4.21
+lost=0/200
+
+--- repeat 1 scale ---
+clients=10 msgs/client=20 connect_avg_ms=590.68 delivered=2000/2000 (100.0%) elapsed_s=3.09
+
+--- repeat 2 rtt ---
+ack_ms: avg=1.47  p50=1.35  p95=3.00  max=6.75
+delivery_ms: avg=1.57  p50=1.44  p95=3.10  max=6.78
+lost=0/200
+
+--- repeat 2 scale ---
+clients=10 msgs/client=20 connect_avg_ms=635.75 delivered=2000/2000 (100.0%) elapsed_s=3.05
+
+--- repeat 3 rtt ---
+ack_ms: avg=1.22  p50=1.13  p95=2.64  max=3.78
+delivery_ms: avg=1.33  p50=1.19  p95=2.76  max=4.08
+lost=0/200
+
+--- repeat 3 scale ---
+clients=10 msgs/client=20 connect_avg_ms=867.13 delivered=2000/2000 (100.0%) elapsed_s=3.17
+
+--- repeat 1 rtt ---
+ack_ms: avg=1.36  p50=1.21  p95=2.85  max=4.48
+delivery_ms: avg=1.45  p50=1.25  p95=2.87  max=4.49
+lost=0/200
+
+--- repeat 1 scale ---
+clients=10 msgs/client=20 connect_avg_ms=533.37 delivered=2000/2000 (100.0%) elapsed_s=3.05
+
+--- repeat 2 rtt ---
+ack_ms: avg=1.12  p50=0.98  p95=2.07  max=13.59
+delivery_ms: avg=1.25  p50=1.07  p95=2.59  max=14.44
+lost=0/200
+
+--- repeat 2 scale ---
+clients=10 msgs/client=20 connect_avg_ms=548.53 delivered=2000/2000 (100.0%) elapsed_s=3.04
+
+--- repeat 3 rtt ---
+ack_ms: avg=1.60  p50=1.30  p95=2.49  max=18.81
+delivery_ms: avg=1.66  p50=1.38  p95=2.56  max=18.82
+lost=0/200
+
+--- repeat 3 scale ---
+clients=10 msgs/client=20 connect_avg_ms=524.37 delivered=2000/2000 (100.0%) elapsed_s=3.04
+
+--- repeat 1 rtt ---
+ack_ms: avg=1.37  p50=1.18  p95=2.85  max=4.05
+delivery_ms: avg=1.45  p50=1.27  p95=2.90  max=5.16
+lost=0/200
+
+--- repeat 1 scale ---
+clients=10 msgs/client=20 connect_avg_ms=564.66 delivered=2000/2000 (100.0%) elapsed_s=3.04
+
+--- repeat 2 rtt ---
+ack_ms: avg=1.49  p50=1.14  p95=3.30  max=14.14
+delivery_ms: avg=1.55  p50=1.25  p95=3.31  max=14.14
+lost=0/200
+
+--- repeat 2 scale ---
+clients=10 msgs/client=20 connect_avg_ms=635.40 delivered=2000/2000 (100.0%) elapsed_s=3.15
+
+--- repeat 3 rtt ---
+ack_ms: avg=6.46  p50=2.03  p95=27.11  max=68.52
+delivery_ms: avg=7.39  p50=2.40  p95=30.46  max=68.53
+lost=0/200
+
+--- repeat 3 scale ---
+clients=10 msgs/client=20 connect_avg_ms=661.30 delivered=2000/2000 (100.0%) elapsed_s=3.23
+

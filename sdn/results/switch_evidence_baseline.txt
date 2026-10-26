@@ -1,0 +1,26 @@
+===== s1 flows =====
+OFPST_FLOW reply (OF1.3) (xid=0x2):
+ cookie=0x0, duration=83.955s, table=0, n_packets=226, n_bytes=15977, idle_timeout=60, priority=1,in_port=1,dl_src=00:00:00:00:00:02,dl_dst=00:00:00:00:00:01 actions=output:2
+ cookie=0x0, duration=83.949s, table=0, n_packets=174, n_bytes=15270, idle_timeout=60, priority=1,in_port=2,dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:02 actions=output:1
+ cookie=0x0, duration=83.907s, table=0, n_packets=56009, n_bytes=84673960, idle_timeout=60, priority=1,in_port=1,dl_src=00:00:00:00:00:04,dl_dst=00:00:00:00:00:01 actions=output:2
+ cookie=0x0, duration=83.906s, table=0, n_packets=55967, n_bytes=84611870, idle_timeout=60, priority=1,in_port=2,dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:04 actions=output:1
+ cookie=0x0, duration=77.057s, table=0, n_packets=2, n_bytes=84, idle_timeout=60, priority=1,in_port=3,dl_src=76:91:ee:3a:f4:b7,dl_dst=00:00:00:00:00:01 actions=output:2
+ cookie=0x0, duration=77.054s, table=0, n_packets=1339, n_bytes=229444, idle_timeout=60, priority=1,in_port=2,dl_src=00:00:00:00:00:01,dl_dst=76:91:ee:3a:f4:b7 actions=output:3
+ cookie=0x0, duration=87.138s, table=0, n_packets=151, n_bytes=35351, priority=0 actions=CONTROLLER:65535
+===== s1 queue stats =====
+OFPST_QUEUE reply (OF1.3) (xid=0x2): 3 queues
+  port 1 queue 0: bytes=84603945, pkts=56251, errors=0, duration=1012329477.4002967296s
+  port 1 queue 1: bytes=626417, pkts=7079, errors=0, duration=1012329477.4002967296s
+  port 1 queue 2: bytes=0, pkts=0, errors=0, duration=1012329477.4002967296s
+===== s2 flows =====
+OFPST_FLOW reply (OF1.3) (xid=0x2):
+ cookie=0x0, duration=83.990s, table=0, n_packets=234, n_bytes=16582, idle_timeout=60, priority=1,in_port=2,dl_src=00:00:00:00:00:02,dl_dst=00:00:00:00:00:01 actions=output:1
+ cookie=0x0, duration=83.976s, table=0, n_packets=170, n_bytes=14991, idle_timeout=60, priority=1,in_port=1,dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:02 actions=output:2
+ cookie=0x0, duration=83.938s, table=0, n_packets=56075, n_bytes=84773752, idle_timeout=60, priority=1,in_port=4,dl_src=00:00:00:00:00:04,dl_dst=00:00:00:00:00:01 actions=output:1
+ cookie=0x0, duration=83.931s, table=0, n_packets=55905, n_bytes=84518126, idle_timeout=60, priority=1,in_port=1,dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:04 actions=output:4
+ cookie=0x0, duration=87.131s, table=0, n_packets=152, n_bytes=35363, priority=0 actions=CONTROLLER:65535
+===== s2 queue stats =====
+OFPST_QUEUE reply (OF1.3) (xid=0x2): 3 queues
+  port 1 queue 0: bytes=84761719, pkts=56333, errors=0, duration=1012329477.4028967296s
+  port 1 queue 1: bytes=417165, pkts=5866, errors=0, duration=1012329477.4028967296s
+  port 1 queue 2: bytes=0, pkts=0, errors=0, duration=1012329477.4028967296s
