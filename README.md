@@ -22,7 +22,7 @@ All core socket programming, application protocol design, concurrency handling, 
 
   * User Registration (`/register`) with duplicate and alphanumeric validation.
 
-  * Explicit Room Management (`/createroom`, `/join`, `/leave`, `/rooms`) ensuring users can only join existing rooms and automatically cleaning up empty rooms on leave/disconnect.
+  * Explicit Room Management (`/create`, `/join`, `/leave`, `/rooms`) ensuring users can only join existing rooms and automatically cleaning up empty rooms on leave/disconnect.
 
   * Messaging (`/msg` for 1-to-1 private messages, `/roommsg` for room-wide broadcasts).
 
@@ -78,7 +78,7 @@ Create a text file (e.g., `cmds.txt`):
 
 ```
 # Sample script
-/createroom general
+/create general
 /join general
 sleep 1
 /roommsg general Hello everyone!
@@ -131,8 +131,8 @@ python3 test_clients.py scale --host 127.0.0.1 --port 5000 --clients 20 --messag
 | `/register` | `<username>` | Registers connection. Must be called before chat commands. | 
 | `/users` | *None* | Returns `Online users: u1, u2, ...` | 
 | `/msg` | `<user> <text>` | Sends `[Private] <sender>: <text>` to target; confirms `[To <user>] <text>` to sender. | 
-| `/createroom` | `<room>` | Initializes a new room on the server. Rejects if room already exists. | 
-| `/join` | `<room>` | Joins an existing room. Fails if `/createroom` was not called first. | 
+| `/create` | `<room>` | Initializes a new room on the server. Rejects if room already exists. | 
+| `/join` | `<room>` | Joins an existing room. Fails if `/create` was not called first. | 
 | `/leave` | `<room>` | Removes user from room. Deletes room if member count drops to 0. | 
 | `/rooms` | *None* | Returns active rooms and member counts: `Rooms: r1(2), r2(1)` | 
 | `/roommsg` | `<room> <text>` | Broadcasts `[<room>] <sender>: <text>` to all current room members. | 

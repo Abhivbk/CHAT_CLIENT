@@ -142,7 +142,7 @@ mininet> xterm h1 h2 h3
 - In **h2** xterm: `cd ~/CHAT_CLIENT && python3 client.py --host 10.0.0.1 --port 5000 --user alice`
 - In **h3** xterm: same with `--user bob`
 - Try: `/create vip`, `/join vip`, `/roommsg vip hello`, `/msg bob hi`
-  (Person 1's README says `/createroom` but their test file uses `/create` — **ask Person 1 which is correct**; type `/help` to see.)
+  (The correct command is `/create`; type `/help` to see all commands.)
 
 In the Ryu terminal you should see lines like `EVENT room_join user=alice room=vip flow=10.0.0.2:48122`. In baseline mode nothing is prioritised — events are only logged. **Screenshot #5** (two clients chatting + Ryu event log).
 
@@ -207,7 +207,7 @@ Send **Person 3** (the tester/benchmarker):
 - `results_baseline.csv`, `results_sdn.csv`, `comparison.png`
 - Tell them: prioritised = room `vip`/`load` or users `rttA`/`rttB`
 
-Send **Person 1**: confirmation that telemetry reaches the controller (screenshot #5/#6), and ask which room-creation command is correct (`/create` vs `/createroom`).
+Send **Person 1**: confirmation that telemetry reaches the controller (screenshot #5/#6).
 
 ---------------------------------------------------------------------
 
