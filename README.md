@@ -1,264 +1,353 @@
 # SDN-Integrated Multi-Client TCP Chat Application
 
+## Table of Contents
+
+1. [Project Overview](#1-project-overview)
+2. [Running the Project](#2-running-the-project)
+3. [System Architecture](#3-system-architecture)
+4. [Repository Structure](#4-repository-structure)
+5. [Chat Application](#5-chat-application)
+6. [Telemetry Specification](#6-telemetry-specification)
+7. [SDN Controller and Policies](#7-sdn-controller-and-policies)
+8. [Network Topology and QoS](#8-network-topology-and-qos)
+9. [Testing and Benchmarks](#9-testing-and-benchmarks)
+10. [Results](#10-results)
+11. [Limitations](#11-limitations)
+12. [Team](#12-team)
+
+---
+
 ## 1. Project Overview
 
-This project implements a multi-client chat application using low-level TCP sockets, designed to integrate with a Software-Defined Networking (SDN) controller inside a Mininet environment. Users can register, send private messages, explicitly create and join chat rooms, and broadcast messages to room members.
+This project is a multi-client chat application built on low-level TCP sockets and integrated with a Software-Defined Networking (SDN) controller running in a Mininet environment. Users can register, send private messages, create and join chat rooms, and broadcast messages to room members.
 
-To support dynamic network management, the chat server includes an out-of-band UDP telemetry emitter that sends real-time application events (JSON) to the SDN controller, allowing the network to classify traffic, apply user/room policies, and prioritize flows dynamically.
+The chat server also emits out-of-band UDP telemetry (JSON) describing what users are doing. A Ryu OpenFlow controller consumes this telemetry and applies network policies, such as prioritising selected chat connections or throttling spammers, on a congested link. The project compares a Baseline network (no policies) against an SDN-enabled network under the same load.
 
-## 2. Chat Application & Telemetry (Socket Layer)
+---
 
-The socket programming, application protocol, concurrency handling and automated tests are implemented:
+## 2. Running the Project
 
-* **Concurrent TCP Server (`server.py`):**
+### 2.1 Requirements
 
-  * Multi-threaded architecture handling multiple simultaneous client connections over a single TCP port (default `5000`).
+| Part | Requirements |
+| ----- | ----- |
+| Chat application | Python 3.8+ (standard library only, nothing to install) |
+| SDN experiment | Ubuntu 22.04 (VM or native) with sudo, Mininet, Open vSwitch, iperf, Ryu |
 
-  * Thread-safe state management using locks for online user registries, room memberships, and per-client socket writes.
+### 2.2 Quick start: chat only (1 minute, any OS)
 
-  * Robust TCP line framing (UTF-8, `\n` terminated) capable of handling split packets, merged packets, and rejecting oversized lines (`>1024` chars) without crashing.
+```bash
+git clone https://github.com/Abhivbk/CHAT_CLIENT
+cd CHAT_CLIENT
 
-* **Application Features:**
-
-  * User Registration (`/register`) with duplicate and alphanumeric validation.
-
-  * Explicit Room Management (`/create`, `/join`, `/leave`, `/rooms`) ensuring users can only join existing rooms and automatically cleaning up empty rooms on leave/disconnect.
-
-  * Messaging (`/msg` for 1-to-1 private messages, `/roommsg` for room-wide broadcasts).
-
-* **SDN Integration Hook (`EventEmitter`):**
-
-  * Non-blocking, fire-and-forget UDP socket that emits JSON-formatted events (`connect`, `register`, `private_msg`, `room_join`, `room_leave`, `room_msg`, `disconnect`) directly to the SDN controller IP/port and/or a local `.jsonl` log file.
-
-* **Client & Testing Suite (`client.py` & `test_clients.py`):**
-
-  * Interactive CLI mode and automated batch-script execution mode (`--script`).
-
-  * Automated verification suite with three modes: `functional` (end-to-end command and framing checks), `rtt` (latency distribution metrics), and `scale` (high-concurrency room broadcast stress testing with CSV export).
-
-## 3. Repository Structure
-
-| File | Description | 
-| ----- | ----- | 
-| `server.py` | Multi-threaded TCP chat server and UDP SDN event emitter. | 
-| `client.py` | Interactive and scriptable TCP chat client (also exposes `ChatClient` class for tests). | 
-| `test_clients.py` | Automated test runner for functional verification, RTT latency, and scalability benchmarks. | 
-| `event_emitter.py` | UDP JSON telemetry emitter used by the server. | 
-| `sdn/topology.py` | Mininet topology (2 switches, 10 Mbit/s bottleneck, OVS QoS queues) and experiment runner. | 
-| `sdn/sdn_controller.py` | Ryu controller: learning switch, telemetry listener, priority and spam-throttle policies. | 
-| `sdn/compare_results.py` | Builds the Baseline vs SDN table and graph. | 
-| `sdn/scripts/` | Helper scripts: install dependencies, start controller, show flows, cleanup. | 
-| `sdn/results/` | Raw results, logs, switch evidence and comparison graph. | 
-| `docs/D1_Design_Document.pdf` | Design document with build/run instructions. | 
-| `README.md` | Project documentation and protocol specs. | 
-
-*Note: The chat application uses the Python 3.8+ standard library only. The SDN part needs Mininet, Open vSwitch, iperf and Ryu (see section 6).*
-
-## 4. How to Run & Verify
-
-### A. Starting the Server
-
-Run the server locally or on a designated Mininet host (e.g., `h1`):
-
-```
-# Basic run (listens on 0.0.0.0:5000)
+# Terminal 1: server
 python3 server.py
 
-# Run with SDN Controller UDP hook and local event logging enabled
-python3 server.py --host 0.0.0.0 --port 5000 \
-    --controller 10.0.0.100:9999 \
-    --event-log events.jsonl
-
-```
-
-### B. Running the Client
-
-**Interactive Mode:**
-
-```
+# Terminal 2 and 3: clients
 python3 client.py --host 127.0.0.1 --port 5000 --user alice
+python3 client.py --host 127.0.0.1 --port 5000 --user bob
 
+# Terminal 4: automated checks (server must be running)
+python3 test_clients.py functional --host 127.0.0.1 --port 5000
 ```
 
-**Scripted Mode (for automated Mininet demos):**
-Create a text file (e.g., `cmds.txt`):
+Try in a client: `/create vip`, `/join vip`, `/roommsg vip hello`, `/msg bob hi`, `/help`.
+
+### 2.3 Full setup: Mininet + Open vSwitch + Ryu
+
+**Step 1: Install dependencies (one time).** Installs Mininet, Open vSwitch, iperf, Wireshark tools, and Ryu inside a virtual environment at `~/ryu-env`.
+
+```bash
+git clone https://github.com/Abhivbk/CHAT_CLIENT ~/CHAT_CLIENT
+cd ~/CHAT_CLIENT/sdn
+bash scripts/install_deps.sh
+bash scripts/cleanup.sh
+```
+
+**Step 2: Run the automated Baseline vs SDN experiment.** Use two terminals, both in `~/CHAT_CLIENT/sdn`. Run the whole sequence once with `baseline` and once with `sdn`, with `cleanup.sh` in between. Each run takes several minutes.
+
+```bash
+# Terminal 1: start the controller (baseline or sdn)
+bash scripts/start_controller.sh baseline
+
+# Terminal 2: build the network and run the experiment
+sudo python3 topology.py --experiment baseline --chat-dir ~/CHAT_CLIENT
+# wait for "*** Done", then Ctrl+C in Terminal 1 and run: bash scripts/cleanup.sh
+# repeat both terminals with "sdn" in place of "baseline"
+```
+
+**Step 3: Compare the results.**
+
+```bash
+python3 compare_results.py
+```
+
+This writes `results/comparison.csv` and `results/comparison.png`. Raw per-run data is in `results/results_baseline.csv` and `results/results_sdn.csv`.
+
+**Optional: interactive demo.** Start the controller in `sdn` mode, then open the network without an experiment:
+
+```bash
+# Terminal 1
+bash scripts/start_controller.sh sdn
+# Terminal 2
+sudo python3 topology.py
+mininet> xterm h1 h2 h3
+```
+
+```bash
+# h1 (server, reporting to the controller at 10.0.0.100)
+cd ~/CHAT_CLIENT
+python3 server.py --host 0.0.0.0 --port 5000 --controller 10.0.0.100:9999 --event-log events.jsonl
+
+# h2 and h3 (clients)
+cd ~/CHAT_CLIENT
+python3 client.py --host 10.0.0.1 --port 5000 --user alice      # --user bob on h3
+# inside a client: /create vip, /join vip, /roommsg vip hello
+```
+
+When a client joins room `vip`, the controller log prints `POLICY A: prioritising ...`. In a third terminal, run `bash scripts/show_flows.sh` to see the `set_queue` flow rules and queue statistics.
+
+### 2.4 Hosts and addresses
+
+| Node | Address | Role |
+| ----- | ----- | ----- |
+| h1 | 10.0.0.1 | Chat server (TCP 5000) |
+| h2, h3 | 10.0.0.2, 10.0.0.3 | Chat clients |
+| h4 | 10.0.0.4 | Background traffic (iperf) |
+| ctl0 | 10.0.0.100 | Controller telemetry address (UDP 9999) |
+| Ryu | 127.0.0.1:6653 | OpenFlow controller |
+
+### 2.5 Troubleshooting
+
+| Problem | Fix |
+| ----- | ----- |
+| `ryu-manager: command not found` | `source ~/ryu-env/bin/activate` |
+| Ryu import error (`ALREADY_HANDLED`) | `pip install "eventlet==0.30.2"` in the Ryu virtual environment |
+| `pingall` shows 100% dropped | Start Ryu first; its log must show `Switch connected` twice |
+| `Unable to contact the remote controller` | Ryu is not running on port 6653 |
+| No `EVENT` lines in the controller log | Server was not started with `--controller 10.0.0.100:9999` |
+| No `set_queue` flows | Controller is in `baseline` mode, or no client joined a VIP room |
+| `iperf: command not found` | `sudo apt install iperf` |
+| Leftover state or odd errors | `bash scripts/cleanup.sh` |
+
+---
+
+## 3. System Architecture
 
 ```
-# Sample script
+                  CONTROL PLANE
+        +-------------------------------+
+        |  Ryu SDN Controller           |
+        |  - UDP telemetry listener     |
+        |  - session / flow mapper      |
+        |  - policy engine (A and B)    |
+        +-------------------------------+
+           ^                       |
+           | UDP JSON events       | OpenFlow 1.3
+           | (port 9999)           | (flow rules, set_queue)
+           |                       v
+                  DATA PLANE (Mininet)
+
+ h1 chat server ---- s1 ====== 10 Mbit/s bottleneck ====== s2 ---- h2 client
+ 10.0.0.1                  q0 default                       |---- h3 client
+                           q1 VIP                           '---- h4 iperf noise
+                           q2 throttled
+```
+
+**How it works:**
+
+1. Clients connect to the chat server over TCP.
+2. For every state change (register, room join, message, disconnect) the server sends one UDP JSON packet to the controller containing the client's IP and TCP source port.
+3. The controller maps that `(ip, port)` to a user and room, and decides whether the connection should be prioritised or throttled.
+4. It installs OpenFlow rules matching that exact TCP 5-tuple in both directions, sending the packets to a specific Open vSwitch queue on the bottleneck link.
+
+---
+
+## 4. Repository Structure
+
+| Path | Description |
+| ----- | ----- |
+| `server.py` | Multi-threaded TCP chat server |
+| `event_emitter.py` | UDP JSON telemetry emitter used by the server |
+| `client.py` | Interactive and scriptable chat client (also exposes the `ChatClient` class for tests) |
+| `test_clients.py` | Functional, RTT and scalability test runner |
+| `sdn/topology.py` | Mininet topology, OVS QoS queues, and experiment runner |
+| `sdn/sdn_controller.py` | Ryu controller: learning switch, telemetry listener, policies |
+| `sdn/compare_results.py` | Builds the Baseline vs SDN table and graph |
+| `sdn/scripts/` | `install_deps.sh`, `start_controller.sh`, `show_flows.sh`, `cleanup.sh` |
+| `sdn/results/` | Raw results, logs, switch evidence, comparison graph |
+| `docs/D1_Design_Document.pdf` | Design document |
+
+---
+
+## 5. Chat Application
+
+### 5.1 Server (`server.py`)
+
+* One thread per client on a single TCP port (default `5000`).
+* Locks protect the online-user registry, room memberships, and per-client socket writes.
+* Line framing: UTF-8, `\n` terminated. Handles split and merged packets and rejects lines over `1024` characters without crashing.
+* Usernames and room names: alphanumeric ASCII, maximum 16 characters.
+* Rooms must be created before they can be joined, and empty rooms are deleted automatically.
+
+### 5.2 Protocol
+
+| Command | Arguments | Behaviour |
+| ----- | ----- | ----- |
+| `/register` | `<username>` | Registers the connection. Required before other chat commands. |
+| `/users` | none | Returns `Online users: u1, u2, ...` |
+| `/msg` | `<user> <text>` | Sends `[Private] <sender>: <text>` to the target and `[To <user>] <text>` to the sender. |
+| `/create` | `<room>` | Creates a room. Rejected if it already exists. |
+| `/join` | `<room>` | Joins an existing room. |
+| `/leave` | `<room>` | Leaves a room. The room is deleted when its last member leaves. |
+| `/rooms` | none | Returns active rooms and member counts, e.g. `Rooms: r1(2), r2(1)` |
+| `/roommsg` | `<room> <text>` | Broadcasts `[<room>] <sender>: <text>` to all members. |
+| `/help` | none | Prints the command list. |
+| `/quit` | none | Closes the connection. |
+
+### 5.3 Client (`client.py`)
+
+Interactive mode:
+
+```bash
+python3 client.py --host 127.0.0.1 --port 5000 --user alice
+```
+
+Scripted mode, for automated demos. Create `cmds.txt`:
+
+```
 /create general
 /join general
 sleep 1
 /roommsg general Hello everyone!
 /users
-
 ```
 
-Run the client with the script:
-
-```
+```bash
 python3 client.py --host 127.0.0.1 --port 5000 --user alice --script cmds.txt --delay 0.5 --linger 2.0
-
 ```
 
-### C. Running the Test & Benchmark Suite
+### 5.4 Server options
 
-Make sure `server.py` is running before executing these commands.
-
-**1. Functional Verification (Pass/Fail checks for all requirements):**
-
+```bash
+python3 server.py                                   # listens on 0.0.0.0:5000
+python3 server.py --host 0.0.0.0 --port 5000 \
+    --controller 10.0.0.100:9999 \
+    --event-log events.jsonl                        # with SDN telemetry and a local event log
 ```
+
+---
+
+## 6. Telemetry Specification
+
+When `--controller IP:PORT` is given, the server sends one UDP packet (UTF-8 JSON) for every state change. The `ip` and `port` fields are the client's source IP and source TCP port as seen by the server. With the server address and port 5000, they give the controller the full TCP 5-tuple needed for per-connection OpenFlow rules.
+
+| Event | Keys | SDN use |
+| ----- | ----- | ----- |
+| `connect` | `ts`, `event`, `ip`, `port` | Track new flows |
+| `register` | `ts`, `event`, `user`, `ip`, `port` | Bind a flow to a username |
+| `private_msg` | `ts`, `event`, `user`, `to`, `ip`, `port`, `bytes` | Monitor 1-to-1 volume, rate limits |
+| `room_join` | `ts`, `event`, `user`, `room`, `ip`, `port` | Assign the flow to a queue based on the room |
+| `room_leave` | `ts`, `event`, `user`, `room`, `ip`, `port` | Reset priority |
+| `room_msg` | `ts`, `event`, `user`, `room`, `ip`, `port`, `bytes`, `recipients` | Detect spam, throttle |
+| `disconnect` | `ts`, `event`, `user`, `ip`, `port` | Remove the client's flow rules |
+
+Sample payload:
+
+```json
+{"ts": 1792763662.541, "event": "room_join", "user": "alice", "room": "vip", "ip": "10.0.0.2", "port": 48122}
+```
+
+---
+
+## 7. SDN Controller and Policies
+
+`sdn/sdn_controller.py` is a Ryu application (OpenFlow 1.3) that provides:
+
+1. **L2 learning switch.** Learns MAC addresses so ARP, ping and TCP work normally.
+2. **Telemetry listener.** A background thread on UDP 9999 that parses events and keeps a session table keyed by `(ip, port)`.
+3. **Policy A: priority.** A connection that joins a VIP room (`vip`, `load`) or registers as a VIP user (`rttA`, `rttB`) gets rules in both directions with `set_queue:1`. The rules are removed on `room_leave` or `disconnect`.
+4. **Policy B: spam throttle.** A user sending more than 40 messages per second is moved to queue 2 (capped at 10% of the link) for 10 seconds.
+
+Mode and settings are controlled with environment variables:
+
+| Variable | Default | Meaning |
+| ----- | ----- | ----- |
+| `SDN_MODE` | `sdn` | `baseline` = learning switch only; `sdn` = policies enabled |
+| `VIP_ROOMS` | `vip,load` | Rooms that get priority |
+| `VIP_USERS` | `rttA,rttB` | Users that get priority |
+| `SPAM_LIMIT` | `40` | Messages per second before throttling |
+| `THROTTLE_SECONDS` | `10` | Throttle duration |
+| `CHAT_SERVER_IP` / `CHAT_SERVER_PORT` | `10.0.0.1` / `5000` | Chat server address |
+| `TELEMETRY_PORT` | `9999` | UDP listen port |
+
+---
+
+## 8. Network Topology and QoS
+
+`sdn/topology.py` builds the Mininet network: two OpenFlow switches (`s1`, `s2`) joined by a 10 Mbit/s bottleneck link, with the server on `s1` and the clients and noise generator on `s2`. A virtual port `ctl0` (10.0.0.100) connects the server to the controller's telemetry listener.
+
+Open vSwitch HTB queues are configured on both bottleneck ports:
+
+| Queue | Purpose | Settings |
+| ----- | ----- | ----- |
+| 0 | Default / best effort | min 20% of link |
+| 1 | VIP (high priority) | min 60% of link, highest priority |
+| 2 | Throttled | max 10% of link |
+
+In experiment mode, `topology.py` also starts the chat server, runs the `rtt` and `scale` tests from h2, and saturates the bottleneck with 12 Mbit/s UDP iperf traffic in each direction (options: `--bw`, `--bg-mbit`, `--repeats`).
+
+---
+
+## 9. Testing and Benchmarks
+
+Start `server.py` first, then run `test_clients.py`:
+
+```bash
+# Pass/fail checks for all commands and framing
 python3 test_clients.py functional --host 127.0.0.1 --port 5000
 
-```
-
-**2. RTT Latency Benchmark (Private message acknowledgement & delivery time):**
-
-```
+# Private-message acknowledgement and delivery latency
 python3 test_clients.py rtt --host 127.0.0.1 --port 5000 --messages 200 --interval 0.05 --csv results.csv
 
-```
-
-**3. Scalability Stress Test (**$N$ **clients in 1 room sending** $M$ **messages each):**
-
-```
+# N clients in one room, M messages each
 python3 test_clients.py scale --host 127.0.0.1 --port 5000 --clients 20 --messages 10 --interval 0.05 --csv results.csv
-
 ```
 
-## 5. Application Protocol & SDN Telemetry Specification (Handover Reference)
+---
 
-### A. Wire Protocol (TCP Port 5000)
+## 10. Results
 
-* **Encoding:** UTF-8 plain text, newline-delimited (`\n`).
+Setup: 10 Mbit/s bottleneck, 12 Mbit/s UDP background load in each direction, `rtt` test (200 messages) and `scale` test (10 clients x 20 messages), 3 repeats per configuration. Mean of 3 runs:
 
-* **Constraints:** Max line length = `1024` chars. Usernames and room names = alphanumeric ASCII only, max `16` chars.
+| Metric | Baseline | SDN |
+| ----- | ----- | ----- |
+| Delivery latency avg (ms) | 1.95 | 3.46 |
+| Delivery latency p95 (ms) | 5.65 | 12.22 |
+| Delivery latency max (ms) | 26.1 | 29.3 |
+| Messages lost / delivery ratio (scale) | 0 / 1.00 | 0 / 1.00 |
 
-| Command | Arguments | Behavior / Server Response | 
-| ----- | ----- | ----- | 
-| `/register` | `<username>` | Registers connection. Must be called before chat commands. | 
-| `/users` | *None* | Returns `Online users: u1, u2, ...` | 
-| `/msg` | `<user> <text>` | Sends `[Private] <sender>: <text>` to target; confirms `[To <user>] <text>` to sender. | 
-| `/create` | `<room>` | Initializes a new room on the server. Rejects if room already exists. | 
-| `/join` | `<room>` | Joins an existing room. Fails if `/create` was not called first. | 
-| `/leave` | `<room>` | Removes user from room. Deletes room if member count drops to 0. | 
-| `/rooms` | *None* | Returns active rooms and member counts: `Rooms: r1(2), r2(1)` | 
-| `/roommsg` | `<room> <text>` | Broadcasts `[<room>] <sender>: <text>` to all current room members. | 
-| `/help` | *None* | Prints command syntax list. | 
-| `/quit` | *None* | Cleanly closes connection. | 
+No messages were lost in either configuration. In two of three SDN runs the p95 delivery latency (2.9 ms and 3.3 ms) was lower than every baseline run (4.2 to 7.4 ms), but the third SDN run was much worse (30.5 ms), which raises the SDN mean above baseline. With only 3 repeats, no reliable improvement can be claimed. Switch evidence confirms that the VIP chat traffic used queue 1 while the iperf flood used queue 0.
 
-### B. SDN Controller Telemetry Format (UDP JSON)
+Files: `sdn/results/comparison.png`, `comparison.csv`, `results_baseline.csv`, `results_sdn.csv`, `switch_evidence_*.txt`.
 
-Whenever `--controller IP:PORT` is passed to `server.py`, the server sends a single UDP packet containing a UTF-8 JSON object for every state change.
+---
 
-**Crucial Mapping Info for SDN:** The `ip` and `port` fields in every JSON payload represent the **client's source IP and source TCP port** as seen by the server. Together with the server's IP and port (`5000`), the SDN controller has the exact TCP 5-tuple `(src_ip, src_port, dst_ip, 5000, TCP)` needed to install granular OpenFlow rules per user or room.
+## 11. Limitations
 
-| Event Type (`event`) | JSON Payload Keys | SDN Use Case | 
-| ----- | ----- | ----- | 
-| `connect` | `ts`, `event`, `ip`, `port` | Track new TCP flow establishment. | 
-| `register` | `ts`, `event`, `user`, `ip`, `port` | Bind a TCP `(ip, port)` flow to a specific `username`. | 
-| `private_msg` | `ts`, `event`, `user`, `to`, `ip`, `port`, `bytes` | Monitor 1-to-1 traffic volume; apply user-specific rate limits. | 
-| `room_join` | `ts`, `event`, `user`, `room`, `ip`, `port` | Assign user's TCP flow to a high/low priority QoS queue based on `room`. | 
-| `room_leave` | `ts`, `event`, `user`, `room`, `ip`, `port` | Reset flow priority when a user exits a prioritized room. | 
-| `room_msg` | `ts`, `event`, `user`, `room`, `ip`, `port`, `bytes`, `recipients` | Detect heavy broadcast rooms or spam; dynamically reroute or throttle. | 
-| `disconnect` | `ts`, `event`, `user`, `ip`, `port` | Clean up active OpenFlow rules for this client. | 
+* Priority is applied per TCP connection, not per message.
+* Telemetry is unauthenticated, best-effort UDP; lost events mean missed policy changes.
+* The experiment uses 3 repeats on a virtual network, so latency numbers are indicative only.
+* The default VIP rooms and users match the names used by the test suite.
 
-**Sample UDP Payload:**
+---
 
-```
-{"ts": 1792763662.541, "event": "room_join", "user": "alice", "room": "vip", "ip": "10.0.0.2", "port": 48122}
+## 12. Team
 
-```
+| Member | Contribution |
+| ----- | ----- |
+| Abhinav Kulkarni | Chat application: TCP server, client, protocol, UDP telemetry, test suite |
+| Akshith Singh | SDN: Ryu controller, priority and spam-throttle policies, Baseline vs SDN comparison |
+| Amogh B | Mininet: topology, bottleneck link, OVS QoS queues, background traffic, experiment automation |
 
-## 6. SDN Network, Controller & Results
-
-The server sends UDP telemetry to a Ryu controller, which gives selected chat connections a high-priority queue on a congested link.
-
-### System Architecture Diagram
-
-```
-+-----------------------------------------------------------------------------------+
-|                               CONTROL PLANE                                       |
-|                                                                                   |
-|   +---------------------------------------------------------------------------+   |
-|   |                        SDN Controller (Ryu / POX)                         |   |
-|   |                                                                           |   |
-|   |  1. UDP Telemetry Listener (Port 9999) <--- Parses JSON events            |   |
-|   |  2. User/Room Flow Mapper              <--- Maps (ip, tcp_port) to Room   |   |
-|   |  3. Policy & QoS Engine                <--- Priority Queues / Rate Limits |   |
-|   +---------------------------------------------------------------------------+   |
-|                  ^                                              |                 |
-|                  | Out-of-Band UDP JSON                         | OpenFlow 1.3    |
-|                  | (Events: register, room_join, etc.)          | (Flow_Mod,      |
-|                  |                                              v  Set-Queue,     |
-+------------------|----------------------------------------------|-----------------+
-|                  |                DATA PLANE (Mininet)          |                 |
-|                  |                                              v                 |
-|   +--------------+---+          +------------------+         +------------------+ |
-|   |   Chat Server    |          |  OpenFlow Switch |         |  OpenFlow Switch | |
-|   |    (Host h1)     |=========>|       (s1)       |========>|       (s2)       | |
-|   |  10.0.0.1:5000   |          |   HTB Queues:    |  Link   |                  | |
-|   +------------------+          |   q0: Default    | (10Mbps)|                  | |
-|                                 |   q1: VIP Room   |         +------------------+ |
-|                                 |   q2: Throttled  |            /      |      \   |
-|                                 +------------------+           /       |       \  |
-|                                                              h2       h3       h4 |
-|                                                           (alice)   (bob)   (iperf|
-|                                                                              noise|
-+-----------------------------------------------------------------------------------+
-
-```
-
-### How to Run the SDN Experiment (Ubuntu 22.04 VM)
-
-```
-cd sdn
-bash scripts/install_deps.sh          # one time: Mininet, OVS, iperf, Ryu (~/ryu-env)
-bash scripts/cleanup.sh
-
-# Terminal 1 - controller (sdn or baseline)
-bash scripts/start_controller.sh sdn
-
-# Terminal 2 - network + automatic experiment (results go to sdn/results/)
-sudo python3 topology.py --experiment sdn --chat-dir ~/CHAT_CLIENT
-
-# Repeat with 'baseline' in both terminals, then:
-python3 compare_results.py            # writes results/comparison.csv and comparison.png
-```
-
-### Interactive Demo
-
-Start the controller (`bash scripts/start_controller.sh sdn`), then `sudo python3 topology.py` (no `--experiment`). At the `mininet>` prompt run `xterm h1 h2 h3`, and:
-
-```
-# h1: server, reporting to the controller (10.0.0.100 is the controller's telemetry address)
-python3 server.py --host 0.0.0.0 --port 5000 --controller 10.0.0.100:9999 --event-log events.jsonl
-# h2 and h3: clients
-python3 client.py --host 10.0.0.1 --port 5000 --user alice      # and --user bob
-# in a client: /create vip, /join vip, /roommsg vip hello
-bash scripts/show_flows.sh      # shows the set_queue flow rules and queue stats
-```
-
-The controller log prints `POLICY A: prioritising ...` when a client joins `vip`. Sending more than 40 messages per second from one client triggers `POLICY B`.
-
-### Troubleshooting
-
-| Problem | Fix |
-|---|---|
-| `ryu-manager: command not found` | `source ~/ryu-env/bin/activate` |
-| Ryu import error (`ALREADY_HANDLED`) | `pip install "eventlet==0.30.2"` in the Ryu venv |
-| `pingall` shows 100% dropped | Start Ryu first; its log must show `Switch connected` twice |
-| `Unable to contact the remote controller` | Ryu is not running on port 6653 |
-| No `EVENT` lines in the controller log | Server was not started with `--controller 10.0.0.100:9999` |
-| No `set_queue` flows | Controller is in `baseline` mode, or no client joined a VIP room |
-| Leftover state or odd errors | `bash scripts/cleanup.sh` |
-
-See `docs/D1_Design_Document.pdf` for the design write-up.
-
-### Policies Implemented
-
-* **Policy A - Priority:** a connection that joins room `vip` or `load`, or registers as `rttA`/`rttB`, gets OpenFlow rules in both directions that use queue 1.
-* **Policy B - Spam throttle:** a user sending more than 40 messages per second is moved to queue 2 (capped at 10% of the link) for 10 seconds.
-
-### Results
-
-Under 12 Mbit/s UDP congestion each way on the 10 Mbit/s link (3 repeats), no messages were lost in either configuration. SDN gave lower p95 delivery latency in 2 of 3 runs, but one outlier run made the SDN mean higher than baseline, so no reliable improvement can be claimed. See `sdn/results/comparison.png` and `comparison.csv`.
+Design document: `docs/D1_Design_Document.pdf`
