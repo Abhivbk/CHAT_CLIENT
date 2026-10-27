@@ -344,10 +344,10 @@ Files: `sdn/results/comparison.png`, `comparison.csv`, `results_baseline.csv`, `
 
 ## 12. Team
 
-| Member | Contribution |
-| ----- | ----- |
-| Abhinav Kulkarni | Chat application: TCP server, client, protocol, UDP telemetry, test suite |
-| Akshith Singh | SDN: Ryu controller, priority and spam-throttle policies, Baseline vs SDN comparison |
-| Amogh B | Mininet: topology, bottleneck link, OVS QoS queues, background traffic, experiment automation |
+| Member | SRN | Contribution |
+| ----- | ----- | ----- |
+| Abhinav Kulkarni | PES1UG25CS014 | Chat application: TCP server, client, protocol, UDP telemetry, test suite |
+| Akshith Singh | PES1UG25CS048 | SDN: Ryu controller, priority and spam-throttle policies, Baseline vs SDN comparison |
+| Amogh B | PES1UG25CS053 | Mininet: topology, bottleneck link, OVS QoS queues, background traffic, experiment automation |
 
 Design document: `docs/D1_Design_Document.pdf`
